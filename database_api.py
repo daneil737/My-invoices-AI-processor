@@ -3,6 +3,7 @@
 from flask import Flask, request
 import mysql.connector
 import os
+import re
 
 app = Flask(__name__)
 
@@ -16,19 +17,30 @@ my_database_connector = mysql.connector.connect(
 my_database_cursor = my_database_connector.cursor()
 
 
+def validate_invoice_data(invoice_data):
+    issue_year, issue_month, issue_day = invoice_data["issued_date"].split("-")
+    return ((len(invoice_data["invoice_number"]) > 0 and len(invoice_data["invoice_number"]) < 20) and
+        (len(invoice_data["seller"]) > 0 and len(invoice_data["seller"]) < 50) and
+        (len(invoice_data["buyer"]) > 0 and len(invoice_data["buyer"]) < 50) and
+        (re.search("\\d{4}-\\d{2}-\\d{2}", invoice_data["issued_date"]) is not None and
+        (int(issue_year) > 1990 and int(issue_year) < 2050) and
+        (int(issue_month) > 0 and int(issue_month) < 13) and
+        (int(issue_day) > 0 and int(issue_month) < 32)) and
+        (len(invoice_data["total_amount"]) > 0 and len(invoice_data["total_amount"]) < 130))
+
+
 @app.route("/add-invoice", methods=["POST"])
 def default_route():
     incoming_payload = request.get_json()
     if request.method == "POST":
-        if (incoming_payload["invoice_number"] and
-        incoming_payload["seller"] and
-        incoming_payload["buyer"] and 
-        incoming_payload["issue_date"] and 
-        incoming_payload["total_amount"]):
+        if validate_invoice_data(incoming_payload):
             sql_query="INSERT INTO invoices (invoice_id, seller, buyer, issued_date, total_amount) VALUES (%s, %s, %s, %s, %s)"
             values = tuple(incoming_payload.values())
-            my_database_cursor.execute(sql_query, values)
-            my_database_connector.commit()
+            try:
+                my_database_cursor.execute(sql_query, values)
+                my_database_connector.commit()
+            except mysql.connector.IntegrityError:
+                return "bad request", 400
             return "record added to the database", 200
         else: return "bad request", 400
 
