@@ -29,9 +29,9 @@ def request_invoice_details(gemini_client_object, invoice_file_name):
     prompt_text = '''
     Extract following data from the attached invoice: invoice number, the seller,
     the buyer (or the issuer), when was it issued and what is the total price. Return the output
-    in given order with values separated by commas. The date format should be dd.mm.yyyy. The 
+    in given order with values separated by commas. The date format should be yyyy-mm-dd. The 
     people/companies which issue and who receive the invoice are never the same ones.
-    The price should not contain any commas or any spaces.
+    The price must not contain any spaces, the decimal point has to be a dot.
     '''
     
     interaction = gemini_client_object.interactions.create(
@@ -51,10 +51,16 @@ def request_invoice_details(gemini_client_object, invoice_file_name):
     return interaction.output_text
 
 
+def validate_ai_response(ai_response):
+    return (False not in [(x != " ") for x in ai_response.split(",")])
+
+
 def main():
     gemini_client = create_gemini_client()
     for file in os.listdir("invoices/"):
-        print(request_invoice_details(gemini_client, f"invoices/{file}"))
+        invoice_ai_analysis = request_invoice_details(gemini_client, f"invoices/{file}")
+        print(invoice_ai_analysis)
+        if not validate_ai_response(invoice_ai_analysis): print(f"issue detected with file {file}")
 
 
 if __name__ == "__main__":
