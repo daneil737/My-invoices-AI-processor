@@ -3,6 +3,7 @@
 import os
 from google import genai
 import base64
+import requests
 
 # Creation of Google Gemini client
 def create_gemini_client():
@@ -59,13 +60,47 @@ def validate_ai_response(ai_response):
     return (False not in [(x != " ") for x in ai_response.split(",")])
 
 
-def main():
-    gemini_client = create_gemini_client()
-    for file in os.listdir("invoices/"):
-        invoice_ai_analysis = request_invoice_details(gemini_client, f"invoices/{file}")
-        print(invoice_ai_analysis)
-        if not validate_ai_response(invoice_ai_analysis): print(f"issue detected with file {file}")
+# Posting invoice data to database
+def send_invoice_data_to_database(invoice_data):
+    invoice_data_list = [data.strip() for data in invoice_data.split(",")]
+    payload = {
+	    "invoice_number" : invoice_data_list[0], 
+	    "seller" : invoice_data_list[1], 
+	    "buyer" : invoice_data_list[2], 
+	    "issued_date" : invoice_data_list[3], 
+	    "total_amount" : invoice_data_list[4]
+    }
 
+    sql_server_path = "http://127.0.0.1:5000/add-invoice"
+
+    request_response = requests.post(sql_server_path, json=payload)
+    return request_response
+
+
+# This function is responsible for whole invoice processing ie. reading invoice
+# data with Gemini AI, validating data and sending the data to database, it prints out
+# the result
+def process_invoice(invoice_file_name):
+    invoice_ai_analysis = request_invoice_details(gemini_client, f"invoices/{invoice_file_name}")
+    if not validate_ai_response(invoice_ai_analysis):
+        print(f"failed to process invoice: {invoice_file_name} correctly")
+    else:
+        send_invoice_response = send_invoice_data_to_database(invoice_ai_analysis)
+        if send_invoice_response.status_code == 200:
+            print(f"invoice {invoice_file_name} added successfully to the database")
+        else:
+            print(f"invoice {invoice_file_name} was not added to the database: {send_invoice_response.text}")
+            
+
+def process_all_invoices(invoices_directory_path):
+    for file in os.listdir(invoices_directory_path):
+        process_invoice(file)
+
+
+def main():
+    global gemini_client
+    gemini_client = create_gemini_client()
+    process_all_invoices("invoices/")
 
 if __name__ == "__main__":
     main()
