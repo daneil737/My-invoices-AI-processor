@@ -4,20 +4,22 @@ import os
 from google import genai
 import base64
 
-
+# Creation of Google Gemini client
 def create_gemini_client():
     return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-
+# File is read and encoded, later it will be sent with prompt to Gemini
 def encode_invoice_file(invoice_file_name):
     with open(invoice_file_name, "rb") as file:
         invoice_file = file.read()
     invoice_b64 = base64.b64encode(invoice_file).decode("utf-8")
     return invoice_b64
 
-
+# Prompt with encoded file are sent to Gemini
 def request_invoice_details(gemini_client_object, invoice_file_name):
     invoice_to_read = encode_invoice_file(invoice_file_name)
+    
+    # Program works with both pdf and jpg files
     if ".jpg" in invoice_file_name:
         file_type = {"type": "image", "mime_type": "image/jpeg"}
     elif ".pdf" in invoice_file_name:
@@ -50,7 +52,9 @@ def request_invoice_details(gemini_client_object, invoice_file_name):
 
     return interaction.output_text
 
-
+# Validation of response, some field may not be read by Gemini or it may be missing
+# in invoice. Function converts response to list of bools and if any of these is False
+# (ie. empty value) then the function returns False.
 def validate_ai_response(ai_response):
     return (False not in [(x != " ") for x in ai_response.split(",")])
 
