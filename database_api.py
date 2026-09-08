@@ -7,7 +7,7 @@ import re
 
 app = Flask(__name__)
 
-
+# Connection to MySql database
 my_database_connector = mysql.connector.connect(
     host="localhost",
     user="mysql",
@@ -16,7 +16,9 @@ my_database_connector = mysql.connector.connect(
 )
 my_database_cursor = my_database_connector.cursor()
 
-
+# Incoming data validation
+# invoice numbers, seller, buyer and total amount have to be strings with correct lenghts
+# issued date must be in correct format, also it must have correct values
 def validate_invoice_data(invoice_data):
     issue_year, issue_month, issue_day = invoice_data["issued_date"].split("-")
     return ((len(invoice_data["invoice_number"]) > 0 and len(invoice_data["invoice_number"]) < 20) and
@@ -29,6 +31,8 @@ def validate_invoice_data(invoice_data):
         (len(invoice_data["total_amount"]) > 0 and len(invoice_data["total_amount"]) < 130))
 
 
+# Handling adding invoice
+# the request must have request "/add-invoice" path and use POST request
 @app.route("/add-invoice", methods=["POST"])
 def default_route():
     incoming_payload = request.get_json()
