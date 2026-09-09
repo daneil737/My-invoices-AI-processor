@@ -21,7 +21,7 @@ my_database_cursor = my_database_connector.cursor()
 # issued date must be in correct format, also it must have correct values
 def validate_invoice_data(invoice_data):
     issue_year, issue_month, issue_day = invoice_data["issued_date"].split("-")
-    return ((len(invoice_data["invoice_number"]) > 0 and len(invoice_data["invoice_number"]) < 20) and
+    return ((len(invoice_data["invoice_number"]) > 0 and len(invoice_data["invoice_number"]) <= 20) and
         (len(invoice_data["seller"]) > 0 and len(invoice_data["seller"]) < 50) and
         (len(invoice_data["buyer"]) > 0 and len(invoice_data["buyer"]) < 50) and
         (re.search("\\d{4}-\\d{2}-\\d{2}", invoice_data["issued_date"]) is not None and
@@ -44,9 +44,9 @@ def default_route():
                 my_database_cursor.execute(sql_query, values)
                 my_database_connector.commit()
             except mysql.connector.IntegrityError:
-                return "bad request", 400
-            return "record added to the database", 200
-        else: return "bad request", 400
+                return "This record already exists in the database", 400
+            return "Record added to the database", 200
+        else: return f"Incorrect data type or wrong content, received data: {incoming_payload}", 400
 
 
 if __name__ == "__main__":
