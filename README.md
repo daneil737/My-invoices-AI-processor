@@ -6,4 +6,4 @@ This script uses a set of both exemplary and real invoices. Exemplary invoices w
 
 Below is a video showing how the invoice processor works.
 
-[![Watch the video](https://img.youtube.com/vi/jo3Q1GJ5JgI/0.jpg)](https://www.youtube.com/watch?v=_jo3Q1GJ5JgI)
+[![Watch the video](https://img.youtube.com/vi/jo3Q1GJ5JgI/0.jpg)](https://www.youtube.com/watch?v=jo3Q1GJ5JgI)
