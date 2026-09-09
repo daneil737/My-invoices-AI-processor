@@ -4,10 +4,23 @@ import os
 from google import genai
 import base64
 import requests
+from datetime import datetime
+import logging
+
+
+# Creates file containing logs from script run
+def create_script_logger():
+	logger = logging.getLogger(__name__)
+	time = datetime.now().strftime("%d.%m.%y_%H:%M")
+	logging.basicConfig(filename=f'logs/invoice_processor_{time}.log', level=logging.INFO)
+	logger.info('Logging started')
+	return logger
+
 
 # Creation of Google Gemini client
 def create_gemini_client():
     return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
 
 # File is read and encoded, later it will be sent with prompt to Gemini
 def encode_invoice_file(invoice_file_name):
@@ -15,6 +28,7 @@ def encode_invoice_file(invoice_file_name):
         invoice_file = file.read()
     invoice_b64 = base64.b64encode(invoice_file).decode("utf-8")
     return invoice_b64
+
 
 # Prompt with encoded file are sent to Gemini
 def request_invoice_details(gemini_client_object, invoice_file_name):
@@ -53,6 +67,7 @@ def request_invoice_details(gemini_client_object, invoice_file_name):
 
     return interaction.output_text
 
+
 # Validation of response, some field may not be read by Gemini or it may be missing
 # in invoice. Function converts response to list of bools and if any of these is False
 # (ie. empty value) then the function returns False.
@@ -83,15 +98,16 @@ def send_invoice_data_to_database(invoice_data):
 def process_invoice(invoice_file_name):
     invoice_ai_analysis = request_invoice_details(gemini_client, f"invoices/{invoice_file_name}")
     if not validate_ai_response(invoice_ai_analysis):
-        print(f"failed to process invoice: {invoice_file_name} correctly")
+        script_logger.error(f"failed to process invoice: {invoice_file_name} correctly, invoice data: {invoice_ai_analysis}")
     else:
         send_invoice_response = send_invoice_data_to_database(invoice_ai_analysis)
         if send_invoice_response.status_code == 200:
-            print(f"invoice {invoice_file_name} added successfully to the database")
+            script_logger.info(f"invoice {invoice_file_name} added successfully to the database")
         else:
-            print(f"invoice {invoice_file_name} was not added to the database: {send_invoice_response.text}")
+            script_logger.error(f"invoice {invoice_file_name} was not added to the database: {send_invoice_response.text}")
             
 
+# Processing all invoices in given path
 def process_all_invoices(invoices_directory_path):
     for file in os.listdir(invoices_directory_path):
         process_invoice(file)
@@ -100,6 +116,10 @@ def process_all_invoices(invoices_directory_path):
 def main():
     global gemini_client
     gemini_client = create_gemini_client()
+
+    global script_logger
+    script_logger = create_script_logger()
+
     process_all_invoices("invoices/")
 
 if __name__ == "__main__":
